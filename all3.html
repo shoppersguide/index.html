@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SearchMiner By: Anthony Webb</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: Arial, sans-serif;
+        max-width: 700px;
+        margin: 60px auto;
+        padding: 20px;
+        background: #121212;
+        color: #e0e0e0;
+    }
+
+    h2 {
+        color: #ffffff;
+    }
+
+    .service-container {
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 7px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+
+    .service-title {
+        display: block;
+        margin-bottom: 12px;
+        color: #ffffff;
+        font-weight: bold;
+    }
+
+    .service-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+    }
+
+    .service-options label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        color: #dddddd;
+    }
+
+    .service-options input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+        accent-color: #4285f4;
+        cursor: pointer;
+    }
+
+    input[type="text"], textarea {
+        width: 100%;
+        padding: 12px;
+        margin: 10px 0;
+        border: 1px solid #444;
+        border-radius: 5px;
+        font-size: 15px;
+        background: #1e1e1e;
+        color: #ffffff;
+    }
+
+    input::placeholder {
+        color: #888;
+    }
+
+    textarea {
+        height: 350px;
+        resize: vertical;
+    }
+
+    .button-container {
+        display: flex;
+        gap: 10px;
+    }
+
+    button {
+        padding: 12px 25px;
+        background: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    button:hover {
+        background: #3367d6;
+    }
+
+    button:disabled {
+        background: #555;
+        cursor: not-allowed;
+    }
+
+    #clearButton {
+        background: #555;
+    }
+
+    #clearButton:hover {
+        background: #444;
+    }
+
+    #status {
+        color: #aaa;
+        margin: 10px 0;
+    }
+</style>
+</head>
+
+<body>
+
+<h2>Autocomplete Search Tool</h2>
+
+<div class="service-container">
+    <span class="service-title">Select Search Services:</span>
+
+    <div class="service-options">
+        <label>
+            <input type="checkbox" name="engine" value="google" checked>
+            Google
+        </label>
+
+        <label>
+            <input type="checkbox" name="engine" value="bing">
+            Bing
+        </label>
+
+        <label>
+            <input type="checkbox" name="engine" value="duckduckgo">
+            DuckDuckGo
+        </label>
+
+        <label>
+            <input type="checkbox" name="engine" value="brave">
+            Brave
+        </label>
+
+        <label>
+            <input type="checkbox" name="engine" value="yahoo">
+            Yahoo
+        </label>
+
+        <label>
+            <input type="checkbox" name="engine" value="youtube">
+            YouTube
+        </label>
+    </div>
+</div>
+
+<input
+    type="text"
+    id="search"
+    placeholder="Enter your search..."
+>
+
+<div class="button-container">
+    <button id="searchButton" onclick="searchAll()">Search</button>
+    <button id="clearButton" onclick="clearResults()">Clear Results</button>
+</div>
+
+<p id="status"></p>
+
+<textarea id="results" placeholder="Search results will appear here..."></textarea>
+
+<script>
+
+const proxy = "https://proxy.cors.dev/";
+
+async function getSuggestions(engine, query) {
+
+    const encodedQuery = encodeURIComponent(query);
+
+    let url = "";
+
+    switch (engine) {
+
+        case "google":
+            url = "https://suggestqueries.google.com/complete/search?client=firefox&hl=en&q=" + encodedQuery;
+            break;
+
+        case "youtube":
+            url = "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=en&q=" + encodedQuery;
+            break;
+
+        case "bing":
+            url = "https://api.bing.com/osjson.aspx?query=" + encodedQuery;
+            break;
+
+        case "duckduckgo":
+            url = "https://duckduckgo.com/ac/?q=" + encodedQuery + "&type=list";
+            break;
+
+        case "brave":
+            url = "https://search.brave.com/api/suggest?q=" + encodedQuery;
+            break;
+
+        case "yahoo":
+            url = "https://search.yahoo.com/sugg/gossip/gossip-us-ura/?output=fxjson&command=" + encodedQuery;
+            break;
+
+    }
+
+    const response = await fetch(proxy + url);
+
+    if (!response.ok) {
+        throw new Error("Request failed: " + response.status);
+    }
+
+    const data = await response.json();
+
+    switch (engine) {
+
+        case "google":
+        case "youtube":
+        case "bing":
+
+            return Array.isArray(data) && Array.isArray(data[1])
+                ? data[1]
+                : [];
+
+        case "duckduckgo":
+
+            return Array.isArray(data)
+                ? data.map(item => item.phrase || item)
+                : [];
+
+        case "brave":
+
+            if (Array.isArray(data) && Array.isArray(data[1])) {
+                return data[1];
+            }
+
+            return Array.isArray(data)
+                ? data.slice(1)
+                : [];
+
+        case "yahoo":
+
+            if (data.r && Array.isArray(data.r)) {
+                return data.r.map(item => item.k);
+            }
+
+            if (Array.isArray(data) && Array.isArray(data[1])) {
+                return data[1];
+            }
+
+            return [];
+
+        default:
+            return [];
+    }
+}
+
+
+function clearResults() {
+
+    document.getElementById("results").value = "";
+
+    document.getElementById("status").textContent =
+        "Results cleared.";
+
+}
+
+
+async function searchAll() {
+
+    const searchValue = document.getElementById("search").value;
+
+    const button = document.getElementById("searchButton");
+
+    const status = document.getElementById("status");
+
+    const resultsField = document.getElementById("results");
+
+    const engines = Array.from(
+        document.querySelectorAll('input[name="engine"]:checked')
+    ).map(checkbox => checkbox.value);
+
+    if (!searchValue.trim()) {
+
+        status.textContent = "Please enter a search term.";
+
+        return;
+    }
+
+    if (engines.length === 0) {
+
+        status.textContent = "Please select at least one search service.";
+
+        return;
+    }
+
+    button.disabled = true;
+
+    status.textContent = "Preparing searches...";
+
+    // Alphabet and numbers
+
+    const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+    // Preserve exact original search, including spaces.
+    // Append each character directly without adding spaces.
+
+    const searches = [
+        searchValue,
+        ...[...characters].map(char => searchValue + char)
+    ];
+
+    let completed = 0;
+
+    let failed = 0;
+
+    let totalResults = 0;
+
+    const totalSearches = searches.length * engines.length;
+
+    try {
+
+        // Process each selected search service
+
+        for (const engine of engines) {
+
+            const engineLabel = engine.toUpperCase();
+
+            // Process requests in batches of 5
+
+            const batchSize = 5;
+
+            for (let i = 0; i < searches.length; i += batchSize) {
+
+                const batch = searches.slice(i, i + batchSize);
+
+                status.textContent =
+                    "Searching " + engineLabel +
+                    " - " + completed + " of " + totalSearches + " requests completed...";
+
+                const responses = await Promise.allSettled(
+                    batch.map(query => getSuggestions(engine, query))
+                );
+
+                responses.forEach(result => {
+
+                    if (result.status === "fulfilled") {
+
+                        result.value.forEach(suggestion => {
+
+                            // Append suggestions without clearing existing results.
+                            // Preserve duplicates and identify the service used.
+
+                            resultsField.value +=
+                                "[" + engineLabel + "] " + suggestion + "\n";
+
+                            totalResults++;
+
+                        });
+
+                    } else {
+
+                        failed++;
+
+                        console.error(result.reason);
+
+                    }
+
+                });
+
+                completed += batch.length;
+
+            }
+
+        }
+
+        status.textContent =
+            "Finished! " + totalResults +
+            " suggestions collected from " +
+            completed + " searches." +
+            (failed ? " " + failed + " requests failed." : "");
+
+    } catch (error) {
+
+        status.textContent = "Error: " + error.message;
+
+    } finally {
+
+        button.disabled = false;
+
+    }
+
+}
+
+</script>
+
+</body>
+</html>
